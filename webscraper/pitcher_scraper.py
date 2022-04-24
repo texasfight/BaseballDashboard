@@ -19,7 +19,7 @@ if __name__ == "__main__":
     with Pool(cpu_count() * 2) as thread_pool:
         # Output of parse_data is iterable, so we need to just grab the first item since
         # we're only grabbing batting data, then re-combine
-        output = thread_pool.map(webscraper.parse_data, player_ids[:64])
+        output = thread_pool.map(webscraper.parse_data, player_ids)
 
     batting = [x[0] for x in output]
     pitching = [x[1] for x in output]
