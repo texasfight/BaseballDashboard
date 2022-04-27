@@ -80,11 +80,13 @@ pitching_plot = px.scatter(pitching_full,
 @app.callback(
     Output('pitching_plot', 'figure'),
     [Input('pitching-range-slider', 'value'),
-     Input('pitching_dropdown', 'value')])
-def update_pitching(year_range, x_value):
+     Input('pitching_dropdown_x', 'value'),
+     Input('pitching_dropdown_y', 'value')])
+def update_pitching(year_range, x_value, y_value):
     data = pitching_full[(year_range[0] <= pitching_full["yearID"]) & (pitching_full["yearID"] <= year_range[1])]
     pitching_plot = px.scatter(data,
-                               x=x_value, y="ERA",
+                               title='Pitching Statistics',
+                               x=x_value, y=y_value,
                                color="yearID",
                                range_color=[1899, 2022],
                                hover_name="fullName", hover_data=["yearID", "G"])
@@ -97,11 +99,13 @@ def update_pitching(year_range, x_value):
 @app.callback(
     Output('batting_plot', 'figure'),
     [Input('batting-range-slider', 'value'),
-     Input('batting_dropdown', 'value')])
-def update_hitting(year_range, x_value):
+     Input('batting_dropdown_x', 'value'),
+     Input('batting_dropdown_y', 'value')])
+def update_hitting(year_range, x_value, y_value):
     data = batting_full[(year_range[0] <= batting_full["yearID"]) & (batting_full["yearID"] <= year_range[1])]
     batting_plot = px.scatter(data,
-                              x=x_value, y="HR",
+                              title='Batting Statistics',
+                              x=x_value, y=y_value,
                               color="yearID",
                               range_color=[1899, 2022],
                               hover_name="fullName", hover_data=["yearID", "G"])
@@ -113,46 +117,132 @@ def update_hitting(year_range, x_value):
 
 app.layout = html.Div(children=[
     html.H1(children="Baseball Dashboard"),
-    html.A(children="We're making this app, boyyyyyyyy", href="https://wikipedia.com"),
+    html.A(children="Click here if you are bored...", href="https://www.youtube.com/watch?v=ECRcCIg0K50"),
     html.Div(
         dbc.Card([
             dcc.Graph(id="pitching_plot", figure=pitching_plot),
             dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
                             value=[1899, 2021],
                             updatemode='drag',
-                            id='pitching-range-slider', tooltip={'always_visible': True}),
-            dcc.Dropdown(id='pitching_dropdown',
+                            id='pitching-range-slider',
+                            tooltip={'always_visible': True}),
+            'X-Axis',
+            dcc.Dropdown(id='pitching_dropdown_x',
                          options=[
                              {'label': 'Wins', 'value': 'W'},
-                             {'label': 'Strikeouts', 'value': 'SO'},
-                             {'label': 'Earned Runs', 'value': 'ER'}],
-                         value='SO',
+                             {'label': 'Games Started', 'value': 'GS'},
+                             {'label': 'Games', 'value': 'G'},
+                             {'label': 'Saves', 'value': 'SV'},
+                             {'label': 'Earned Runs', 'value': 'ER'},
+                             {'label': 'Strike Outs', 'value': 'SO'},
+                             {'label': 'Walks', 'value': 'BB'},
+                             {'label': 'Opponent Batting Average', 'value': 'BAOpp'},
+                             {'label': 'Wild Pitches', 'value': 'WP'},
+                             {'label': 'Home Runs', 'value': 'HR'},
+                             {'label': 'Leverage Index', 'value': 'gmLI'},
+                             {'label': 'Wins Above Replacement', 'value': 'WAR'}],
+                         value='G',
                          searchable=True,
                          placeholder='Please select...',
                          clearable=True,
-                         className="w-50 p-2")
-        ], color="secondary"), className="w-75 mx-auto p-5"
-    ),
+                         className="w-50 p-2"),
+            'Y-Axis',
+            dcc.Dropdown(id='pitching_dropdown_y',
+                         options=[
+                             {'label': 'Wins', 'value': 'W'},
+                             {'label': 'Games Started', 'value': 'GS'},
+                             {'label': 'Games', 'value': 'G'},
+                             {'label': 'Saves', 'value': 'SV'},
+                             {'label': 'Earned Runs', 'value': 'ER'},
+                             {'label': 'Strike Outs', 'value': 'SO'},
+                             {'label': 'Walks', 'value': 'BB'},
+                             {'label': 'Opponent Batting Average', 'value': 'BAOpp'},
+                             {'label': 'Wild Pitches', 'value': 'WP'},
+                             {'label': 'Home Runs', 'value': 'HR'},
+                             {'label': 'Leverage Index', 'value': 'gmLI'},
+                             {'label': 'Wins Above Replacement', 'value': 'WAR'}],
+                         value='W',
+                         searchable=True,
+                         placeholder='Please select...',
+                         clearable=True,
+                         className="w-50 p-2"),
+                  ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+
     html.Div(
         dbc.Card([
             dcc.Graph(id="batting_plot", figure=batting_plot),
             dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
                             value=[1899, 2021],
                             updatemode='drag',
-                            id='batting-range-slider', tooltip={'always_visible': True}),
-            dcc.Dropdown(id='batting_dropdown',
+                            id='batting-range-slider',
+                            tooltip={'always_visible': True}),
+            'X-Axis',
+            dcc.Dropdown(id='batting_dropdown_x',
                          options=[
                              {'label': 'Home Runs', 'value': 'HR'},
                              {'label': 'Hits', 'value': 'H'},
-                             {'label': 'Stolen Bases', 'value': 'SB'}],
-                         value='SB',
+                             {'label': 'Runs Batted In', 'value': 'RBI'},
+                             {'label': 'Runs', 'value': 'R'},
+                             {'label': 'Stolen Bases', 'value': 'SB'},
+                             {'label': 'Caught Stealing', 'value': 'CS'},
+                             {'label': 'Wins Above Replacement', 'value': 'WAR'},
+                             {'label': 'Offensive Wins Above Replacement', 'value': 'oWAR'},
+                             {'label': 'Defensive Wins Above Replacement', 'value': 'dWAR'},
+                             {'label': 'Strike Outs', 'value': 'SO'},
+                             {'label': 'Walks', 'value': 'BB'},
+                             {'label': 'Hit by Pitch', 'value': 'HBP'},
+                             {'label': 'Games Played', 'value': 'G'},
+                             {'label': 'At Bats', 'value': 'AB'},
+                             {'label': 'Doubles', 'value': '2B'},
+                             {'label': 'Triples', 'value': '3B'},
+                             {'label': 'Sacrifice Bunts', 'value': 'SH'},
+                             {'label': 'Sacrifice Flies', 'value': 'SF'}],
+                         value='G',
                          searchable=True,
                          placeholder='Please select...',
                          clearable=True,
-                         className="w-50 p-2")
-        ], color="secondary"), className="w-75 mx-auto p-5"
-    )
-])
+                         className="w-50 p-2"),
+            'Y-Axis',
+            dcc.Dropdown(id='batting_dropdown_y',
+                         options=[
+                             {'label': 'Home Runs', 'value': 'HR'},
+                             {'label': 'Hits', 'value': 'H'},
+                             {'label': 'Runs Batted In', 'value': 'RBI'},
+                             {'label': 'Runs', 'value': 'R'},
+                             {'label': 'Stolen Bases', 'value': 'SB'},
+                             {'label': 'Caught Stealing', 'value': 'CS'},
+                             {'label': 'Wins Above Replacement', 'value': 'WAR'},
+                             {'label': 'Offensive Wins Above Replacement', 'value': 'oWAR'},
+                             {'label': 'Defensive Wins Above Replacement', 'value': 'dWAR'},
+                             {'label': 'Strike Outs', 'value': 'SO'},
+                             {'label': 'Walks', 'value': 'BB'},
+                             {'label': 'Hit by Pitch', 'value': 'HBP'},
+                             {'label': 'Games Played', 'value': 'G'},
+                             {'label': 'At Bats', 'value': 'AB'},
+                             {'label': 'Doubles', 'value': '2B'},
+                             {'label': 'Triples', 'value': '3B'},
+                             {'label': 'Sacrifice Bunts', 'value': 'SH'},
+                             {'label': 'Sacrifice Flies', 'value': 'SF'}],
+                         value='H',
+                         searchable=True,
+                         placeholder='Please select...',
+                         clearable=True,
+                         className="w-50 p-2"),
+                  ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
 
+    html.Div(
+        dbc.Card([
+            dcc.Graph(id="Pitching Correlation Matrix", figure=pitching_correlation_matrix),
+                   ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+    
+   html.Div(
+        dbc.Card([
+            dcc.Graph(id="Batting Correlation Matrix", figure=batting_correlation_matrix),
+                   ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+        ])
 if __name__ == "__main__":
     app.run_server(debug=True)
