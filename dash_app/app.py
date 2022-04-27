@@ -30,7 +30,7 @@ batting_min = batting_min[batting_min["minAB"] < batting_min["AB"]]
 batting_full = pd.merge(batting_min, players_df, on=["playerID"])
 batting_full["fullName"] = batting_full["nameFirst"] + " " + batting_full["nameLast"]
 
-batting_advanced_df = batting_advanced_df.rename({'team': 'teamID'})
+batting_advanced_df = batting_advanced_df.rename({'Tm': 'teamID'}, axis=1)
 batting_advanced_df = pd.merge(batting_full, batting_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G'])
 
 batting_advanced_df = batting_advanced_df[
@@ -55,8 +55,8 @@ pitching_min = pitching_min[pitching_min["minOUT"] < pitching_min["IPouts"]]
 pitching_full = pd.merge(pitching_min, players_df, on=["playerID"])
 pitching_full["fullName"] = pitching_full["nameFirst"] + " " + pitching_full["nameLast"]
 
-pitching_advanced_df = pitching_advanced_df.rename({'team': 'teamID'})
-pitching_advanced_df = pd.merge(pitching_full, pitching_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G'])
+pitching_advanced_df = pitching_advanced_df.rename({'Tm': 'teamID'}, axis=1)
+pitching_advanced_df = pd.merge(pitching_full, pitching_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G', 'GS'])
 
 pitching_advanced_df = pitching_advanced_df[
     ['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState', 'birthCountry', 'W', 'GS', 'G', 'SV', 'ER',
