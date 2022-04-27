@@ -16,6 +16,8 @@ players_df = pd.read_csv(BASEBALL_DIR / "core" / "People.csv")
 batting_df = pd.read_csv(BASEBALL_DIR / "core" / "Batting.csv")
 pitching_df = pd.read_csv(BASEBALL_DIR / "core" / "Pitching.csv")
 appearances_df = pd.read_csv(BASEBALL_DIR / "core" / "Appearances.csv")
+batting_advanced_df = pd.read_csv(BASEBALL_DIR / 'advanced' / 'batting_advanced.csv')
+pitching_advanced_df = pd.read_csv(BASEBALL_DIR / 'advanced' / 'pitching_advanced.csv')
 
 # Remote old years
 batting_df = batting_df[batting_df["yearID"] >= 1899]
@@ -27,6 +29,20 @@ batting_min = batting_min[batting_min["minAB"] < batting_min["AB"]]
 # Add in full name data
 batting_full = pd.merge(batting_min, players_df, on=["playerID"])
 batting_full["fullName"] = batting_full["nameFirst"] + " " + batting_full["nameLast"]
+
+batting_advanced_df = batting_advanced_df.rename({'team': 'teamID'})
+batting_advanced_df = pd.merge(batting_full, batting_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G'])
+
+batting_advanced_df = batting_advanced_df[
+    ['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState', 'birthCountry', 'G', 'AB', 'R', 'H', '2B',
+     '3B', 'HR', 'RBI', 'SB', 'CS', 'BB', 'SO', 'HBP', 'SH', 'SF', 'WAR', 'oWAR', 'dWAR']]
+
+batting_correlation = batting_advanced_df.corr()
+batting_correlation_matrix = px.imshow(batting_correlation,
+                                       text_auto=True,
+                                       aspect='auto', zmax=1, zmin=-1,
+                                       color_continuous_scale=px.colors.diverging.Fall)
+
 # plot scatter plot
 batting_plot = px.scatter(batting_full, x="SB", y="HR", hover_name="fullName", hover_data=["yearID", "G"])
 
@@ -38,6 +54,19 @@ pitching_min = pitching_min[pitching_min["minOUT"] < pitching_min["IPouts"]]
 # Add in full names
 pitching_full = pd.merge(pitching_min, players_df, on=["playerID"])
 pitching_full["fullName"] = pitching_full["nameFirst"] + " " + pitching_full["nameLast"]
+
+pitching_advanced_df = pitching_advanced_df.rename({'team': 'teamID'})
+pitching_advanced_df = pd.merge(pitching_full, pitching_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G'])
+
+pitching_advanced_df = pitching_advanced_df[
+    ['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState', 'birthCountry', 'W', 'GS', 'G', 'SV', 'ER',
+     'SO', 'BB', 'ERA', 'BAOpp', 'WP', 'HR', 'gmLI', 'WAR']]
+
+pitching_correlation = pitching_advanced_df.corr()
+pitching_correlation_matrix = px.imshow(pitching_correlation,
+                                        text_auto=True,
+                                        aspect='auto', zmax=1, zmin=-1,
+                                        color_continuous_scale=px.colors.diverging.Fall)
 
 # This actually looks a little interesting. Might try to implement this:
 # https://plotly.com/python/range-slider/
@@ -102,25 +131,25 @@ app.layout = html.Div(children=[
                          placeholder='Please select...',
                          clearable=True,
                          className="w-50 p-2")
-            ], color="secondary"), className="w-75 mx-auto p-5"
+        ], color="secondary"), className="w-75 mx-auto p-5"
     ),
     html.Div(
         dbc.Card([
-             dcc.Graph(id="batting_plot", figure=batting_plot),
-             dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
-                             value=[1899, 2021],
-                             updatemode='drag',
-                             id='batting-range-slider', tooltip={'always_visible': True}),
-             dcc.Dropdown(id='batting_dropdown',
-                          options=[
-                              {'label': 'Home Runs', 'value': 'HR'},
-                              {'label': 'Hits', 'value': 'H'},
-                              {'label': 'Stolen Bases', 'value': 'SB'}],
-                          value='SB',
-                          searchable=True,
-                          placeholder='Please select...',
-                          clearable=True,
-                          className="w-50 p-2")
+            dcc.Graph(id="batting_plot", figure=batting_plot),
+            dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
+                            value=[1899, 2021],
+                            updatemode='drag',
+                            id='batting-range-slider', tooltip={'always_visible': True}),
+            dcc.Dropdown(id='batting_dropdown',
+                         options=[
+                             {'label': 'Home Runs', 'value': 'HR'},
+                             {'label': 'Hits', 'value': 'H'},
+                             {'label': 'Stolen Bases', 'value': 'SB'}],
+                         value='SB',
+                         searchable=True,
+                         placeholder='Please select...',
+                         clearable=True,
+                         className="w-50 p-2")
         ], color="secondary"), className="w-75 mx-auto p-5"
     )
 ])
