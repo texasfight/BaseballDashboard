@@ -55,10 +55,10 @@ pitching_plot = px.scatter(pitching_full,
 def update_pitching(year_range, x_value):
     data = pitching_full[(year_range[0] <= pitching_full["yearID"]) & (pitching_full["yearID"] <= year_range[1])]
     pitching_plot = px.scatter(data,
-                                    x=x_value, y="ERA",
-                                    color="yearID",
-                                    range_color=[1899, 2022],
-                                    hover_name="fullName", hover_data=["yearID", "G"])
+                               x=x_value, y="ERA",
+                               color="yearID",
+                               range_color=[1899, 2022],
+                               hover_name="fullName", hover_data=["yearID", "G"])
 
     pitching_plot.update_layout(transition_duration=1000)
 
@@ -72,10 +72,10 @@ def update_pitching(year_range, x_value):
 def update_hitting(year_range, x_value):
     data = batting_full[(year_range[0] <= batting_full["yearID"]) & (batting_full["yearID"] <= year_range[1])]
     batting_plot = px.scatter(data,
-                                    x=x_value, y="HR",
-                                    color="yearID",
-                                    range_color=[1899, 2022],
-                                    hover_name="fullName", hover_data=["yearID", "G"])
+                              x=x_value, y="HR",
+                              color="yearID",
+                              range_color=[1899, 2022],
+                              hover_name="fullName", hover_data=["yearID", "G"])
 
     batting_plot.update_layout(transition_duration=1000)
 
@@ -85,36 +85,44 @@ def update_hitting(year_range, x_value):
 app.layout = html.Div(children=[
     html.H1(children="Baseball Dashboard"),
     html.A(children="We're making this app, boyyyyyyyy", href="https://wikipedia.com"),
-    dcc.Graph(id="pitching_plot", figure=pitching_plot),
-    dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
-                    value=[1899, 2021],
-                    updatemode='drag',
-                    id='pitching-range-slider', tooltip={'always_visible': True}),
-    dcc.Dropdown(id='pitching_dropdown',
-                 options=[
-                     {'label': 'Wins', 'value': 'W'},
-                     {'label': 'Strikeouts', 'value': 'SO'},
-                     {'label': 'Earned Runs', 'value': 'ER'}],
-                 value='SO',
-                 searchable=True,
-                 placeholder='Please select...',
-                 clearable=True,
-                 style={'width': '48%', 'display': 'inline-block'}),
-    dcc.Graph(id="batting_plot", figure=batting_plot),
-    dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
-                    value=[1899, 2021],
-                    updatemode='drag',
-                    id='batting-range-slider', tooltip={'always_visible': True}),
-    dcc.Dropdown(id='batting_dropdown',
-                 options=[
-                     {'label': 'Home Runs', 'value': 'HR'},
-                     {'label': 'Hits', 'value': 'H'},
-                     {'label': 'Stolen Bases', 'value': 'SB'}],
-                 value='SB',
-                 searchable=True,
-                 placeholder='Please select...',
-                 clearable=True,
-                 style={'width': '48%', 'display': 'inline-block'}),
+    html.Div(
+        dbc.Card([
+            dcc.Graph(id="pitching_plot", figure=pitching_plot),
+            dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
+                            value=[1899, 2021],
+                            updatemode='drag',
+                            id='pitching-range-slider', tooltip={'always_visible': True}),
+            dcc.Dropdown(id='pitching_dropdown',
+                         options=[
+                             {'label': 'Wins', 'value': 'W'},
+                             {'label': 'Strikeouts', 'value': 'SO'},
+                             {'label': 'Earned Runs', 'value': 'ER'}],
+                         value='SO',
+                         searchable=True,
+                         placeholder='Please select...',
+                         clearable=True,
+                         className="w-50 p-2")
+            ], color="secondary"), className="w-75 mx-auto p-5"
+    ),
+    html.Div(
+        dbc.Card([
+             dcc.Graph(id="batting_plot", figure=batting_plot),
+             dcc.RangeSlider(1899, 2021, marks={x: str(x) for x in range(1899, 2022, 20)},
+                             value=[1899, 2021],
+                             updatemode='drag',
+                             id='batting-range-slider', tooltip={'always_visible': True}),
+             dcc.Dropdown(id='batting_dropdown',
+                          options=[
+                              {'label': 'Home Runs', 'value': 'HR'},
+                              {'label': 'Hits', 'value': 'H'},
+                              {'label': 'Stolen Bases', 'value': 'SB'}],
+                          value='SB',
+                          searchable=True,
+                          placeholder='Please select...',
+                          clearable=True,
+                          className="w-50 p-2")
+        ], color="secondary"), className="w-75 mx-auto p-5"
+    )
 ])
 
 if __name__ == "__main__":
