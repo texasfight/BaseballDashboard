@@ -2,10 +2,15 @@ import plotly.express as px
 from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
+import flask
 
 from pathlib import Path
 
-app = Dash(__name__, external_stylesheets=[dbc.themes.LUX])
+server = flask.Flask(__name__)
+
+app = Dash(__name__,
+           server=server,
+           external_stylesheets=[dbc.themes.LUX])
 
 MAIN_DIR = Path(".").absolute().parent
 BASEBALL_DIR = MAIN_DIR / "baseball_data"
