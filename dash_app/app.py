@@ -53,7 +53,9 @@ batting_plot = px.scatter(batting_full, x="SB", y="HR", hover_name="fullName", h
 
 #Batting Correlation Matrix between Statistics
 batting_correlation = batting_advanced_df.corr()
-batting_correlation_matrix=px.imshow(batting_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1, color_continuous_scale=px.colors.diverging.Fall)
+batting_correlation_matrix = px.imshow(batting_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1,
+                                       title='Batting Statistics Correlation Matrix',
+                                       color_continuous_scale=px.colors.diverging.Fall)
 
 #Batting Political Data
 batting_political = pd.merge(batting_advanced_df, pres_df, on="yearID").rename({"Democrat": "demPres"},
@@ -97,7 +99,9 @@ pitching_plot = px.scatter(pitching_full,
 
 #Pitching Correlation Between Statistics
 pitching_correlation = pitching_advanced_df.corr()
-pitching_correlation_matrix=px.imshow(pitching_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1, color_continuous_scale=px.colors.diverging.Fall)
+pitching_correlation_matrix = px.imshow(pitching_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1,
+                                        title='Pitching Statistics Correlation Matrix',
+                                        color_continuous_scale=px.colors.diverging.Fall)
 
 #Pitching Political
 pitching_political = pd.merge(pitching_advanced_df, pres_df, on="yearID").rename({"Democrat": "demPres"},
@@ -140,10 +144,11 @@ kmeans = KMeans(
         tol=1e-04, random_state=42
     )
 kmeans.fit(batting_heavy_advanced_main_scale)
-batting_heavy_advanced_main_scale['label']=kmeans.labels_
-polar=batting_heavy_advanced_main_scale.groupby("label").mean().reset_index()
-polar=pd.melt(polar,id_vars=["label"])
-batting_flower_fig= px.line_polar(polar, r="value", theta="variable", color="label", line_close=True,height=800,width=1200)
+batting_heavy_advanced_main_scale['label'] = kmeans.labels_
+polar = batting_heavy_advanced_main_scale.groupby("label").mean().reset_index()
+polar = pd.melt(polar, id_vars=["label"])
+batting_flower_kmeans = px.line_polar(polar, r="value", theta="variable", color="label", line_close=True,
+                                      height=800, width=1200, title='Batting Cluster Features - Kmeans')
 
 
 
@@ -154,11 +159,11 @@ batting_pie_fig=px.pie(pie,values='value',names='label')
 
 
 pca_num_components = 2
-reduced_data = PCA(n_components=pca_num_components).fit_transform(batting_heavy_advanced_main_scale.drop('label',axis = 1))
-results = pd.DataFrame(reduced_data,columns=['pca1','pca2'])
-batting_cluster_fig=px.scatter(results,x="pca1", y="pca2", color=batting_heavy_advanced_main_scale['label'],hover_name=batting_advanced_df['fullName'])
-
-
+reduced_data = PCA(n_components=pca_num_components).fit_transform(
+    batting_heavy_advanced_main_scale.drop('label', axis=1))
+results = pd.DataFrame(reduced_data, columns=['pca1', 'pca2'])
+batting_cluster_kmeans = px.scatter(results, x="pca1", y="pca2", color=batting_heavy_advanced_main_scale['label'],
+                                    hover_name=batting_advanced_df['fullName'], title='Batting Cluster - Kmeans')
 
 
 pitching_full_advanced_poli = pd.merge(pitching_advanced_df,pitching_political_score, on = 'playerID')
@@ -185,8 +190,9 @@ pca_num_components = 2
 reduced_data = PCA(n_components=pca_num_components).fit_transform(
    pitching_full_advanced_main_scale.drop('label', axis=1))
 results = pd.DataFrame(reduced_data, columns=['pca1', 'pca2'])
-pitching_cluster_fig=px.scatter(results, x="pca1", y="pca2", color=pitching_full_advanced_main_scale['label'],
-           hover_name=pitching_full_advanced_poli['fullName'])
+pitching_cluster_kmeans = px.scatter(results, x="pca1", y="pca2", title='Pitching Cluster - Kmeans',
+                                     color=pitching_full_advanced_main_scale['label'],
+                                     hover_name=pitching_full_advanced_poli['fullName'])
 
 
 @app.callback(
@@ -357,21 +363,21 @@ app.layout = html.Div(children=[
             ),
    html.Div(
         dbc.Card([
-            dcc.Graph(id="Batting Cluster Flower", figure=batting_flower_fig),
-                   ], color="secondary"), className="w-75 mx-auto p-2"
-            ),
+            dcc.Graph(id="Batting Cluster Flower - Kmeans", figure=batting_flower_kmeans),
+        ], color="secondary"), className="w-75 mx-auto p-2"
+    ),
 
    html.Div(
         dbc.Card([
-            dcc.Graph(id="Batting Cluster", figure=batting_cluster_fig),
-                   ], color="secondary"), className="w-75 mx-auto p-2"
-            ),
+            dcc.Graph(id="Batting Cluster - Kmeans", figure=batting_cluster_kmeans),
+        ], color="secondary"), className="w-75 mx-auto p-2"
+    ),
 
    html.Div(
         dbc.Card([
-            dcc.Graph(id="Pitching Cluster", figure=pitching_cluster_fig),
-                   ], color="secondary"), className="w-75 mx-auto p-2"
-            ),
-        ])
+            dcc.Graph(id="Pitching Cluster - Kmeans", figure=pitching_cluster_kmeans),
+        ], color="secondary"), className="w-75 mx-auto p-2"
+    ),
+])
 if __name__ == "__main__":
     app.run_server(debug=True)
