@@ -18,7 +18,7 @@ The political data used was pulled from [Wikipedia](https://en.wikipedia.org/wik
 
 ### Webscraping
 
-As we began to analyze our data, we realized that the given 
+As we began to analyze our data, we realized that the given data was not sufficient, as there was not a singular value we could use to compare players in terms of how well they were playing. To bridge this gap, we chose to gather WAR and other advanced statistics from another source.
 
 All code for webscraping can be found in the `webscraper/` directory, where we crawled through all qualifying pitchers 
 and batters to gather more advanced statistics like WAR (Wins Above Replacement) from Baseball Reference, 
