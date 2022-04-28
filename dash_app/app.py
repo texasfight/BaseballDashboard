@@ -3,7 +3,10 @@ from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
 import flask
-
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from pathlib import Path
 
 server = flask.Flask(__name__)
@@ -24,62 +27,166 @@ appearances_df = pd.read_csv(BASEBALL_DIR / "core" / "Appearances.csv")
 batting_advanced_df = pd.read_csv(BASEBALL_DIR / 'advanced' / 'batting_advanced.csv')
 pitching_advanced_df = pd.read_csv(BASEBALL_DIR / 'advanced' / 'pitching_advanced.csv')
 
-# Remote old years
+pres_df = pd.read_csv(POLIT_DIR / "Presidents.csv").rename({"Year": "yearID"}, axis=1).drop("Republican", axis=1)
+congress_df = pd.read_csv(POLIT_DIR / "Representatives.csv").rename({"Year": "yearID"}, axis=1)
+senators_df = pd.read_csv(POLIT_DIR / "Senators.csv").rename({"Year": "yearID"}, axis=1)
+
+# Remove old years
 batting_df = batting_df[batting_df["yearID"] >= 1899]
 # Filter only to qualifying players
 teams_df["minAB"] = 3.1 * teams_df['G']
 batting_min = pd.merge(batting_df, teams_df[['minAB', 'yearID', 'teamID']], on=['yearID', 'teamID'])
-batting_min = batting_min[batting_min["minAB"] < batting_min["AB"]]
-
+batting_min["PA"] = batting_min[["AB", "HBP", "BB", "SF", "SH"]].sum(axis=1, skipna=True)
+batting_min = batting_min[batting_min["minAB"] < batting_min["PA"]]
 # Add in full name data
 batting_full = pd.merge(batting_min, players_df, on=["playerID"])
 batting_full["fullName"] = batting_full["nameFirst"] + " " + batting_full["nameLast"]
 
-batting_advanced_df = batting_advanced_df.rename({'Tm': 'teamID'}, axis=1)
-batting_advanced_df = pd.merge(batting_full, batting_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G'])
+# batting_advanced_df = batting_advanced_df.rename({'Tm': 'teamID'}, axis=1)
+batting_advanced_df = pd.merge(batting_full,batting_advanced_df.drop("G", axis=1), on=['yearID','bbrefID'])
+batting_advanced_df = batting_advanced_df[['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState',
+                                           'birthCountry', 'G','AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'SB', 'CS',
+                                           'BB', 'SO', 'HBP', 'SH', 'SF', 'WAR', 'oWAR', 'dWAR']]
 
-batting_advanced_df = batting_advanced_df[
-    ['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState', 'birthCountry', 'G', 'AB', 'R', 'H', '2B',
-     '3B', 'HR', 'RBI', 'SB', 'CS', 'BB', 'SO', 'HBP', 'SH', 'SF', 'WAR', 'oWAR', 'dWAR']]
-
-batting_correlation = batting_advanced_df.corr()
-batting_correlation_matrix = px.imshow(batting_correlation,
-                                       text_auto=True,
-                                       aspect='auto', zmax=1, zmin=-1,
-                                       color_continuous_scale=px.colors.diverging.Fall)
-
-# plot scatter plot
+# Batting Scatter Plot
 batting_plot = px.scatter(batting_full, x="SB", y="HR", hover_name="fullName", hover_data=["yearID", "G"])
 
-# Filter year and pitches
+#Batting Correlation Matrix between Statistics
+batting_correlation = batting_advanced_df.corr()
+batting_correlation_matrix=px.imshow(batting_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1, color_continuous_scale=px.colors.diverging.Fall)
+
+#Batting Political Data
+batting_political = pd.merge(batting_advanced_df, pres_df, on="yearID").rename({"Democrat": "demPres"},
+                                                                                         axis=1)
+batting_political = pd.merge(batting_political,
+                              senators_df[["yearID", "% Democrats"]],
+                              on="yearID").rename({"% Democrats": "demSenate"}, axis=1)
+
+batting_political = pd.merge(batting_political,
+                              congress_df[["yearID", "% Democrats"]],
+                              on="yearID").rename({"% Democrats": "demCongress"}, axis=1)
+
+idx = pd.MultiIndex.from_product((batting_political['playerID'].unique(), batting_political['demPres'].unique()),
+                                 names=["playerID", "demPres"])
+bat_pres_comp = batting_political.groupby(["playerID", "demPres"]).agg({"WAR": "mean"}).reindex(idx)
+bat_pres_comp = bat_pres_comp.fillna(0)
+batting_political_score = bat_pres_comp.groupby("playerID").agg(np.subtract.reduce)
+batting_political_score.columns = ['Political Score']
+
+#Pitching Data - Filter Year and Pitches
 pitching_df = pitching_df[pitching_df["yearID"] >= 1899]
 teams_df["minOUT"] = teams_df["G"] * 3
 pitching_min = pd.merge(pitching_df, teams_df[['minOUT', 'yearID', 'teamID']], on=['yearID', 'teamID'])
 pitching_min = pitching_min[pitching_min["minOUT"] < pitching_min["IPouts"]]
-# Add in full names
+#Add in Full Names for Pitchers
 pitching_full = pd.merge(pitching_min, players_df, on=["playerID"])
 pitching_full["fullName"] = pitching_full["nameFirst"] + " " + pitching_full["nameLast"]
+# pitching_advanced_df = pitching_advanced_df.rename({'Tm': 'teamID'}, axis=1)
+pitching_advanced_df = pd.merge(pitching_full,pitching_advanced_df.drop(['G','GS'], axis=1), on=['yearID','bbrefID'])
 
-pitching_advanced_df = pitching_advanced_df.rename({'Tm': 'teamID'}, axis=1)
-pitching_advanced_df = pd.merge(pitching_full, pitching_advanced_df, on=['yearID', 'bbrefID', 'teamID', 'G', 'GS'])
 
-pitching_advanced_df = pitching_advanced_df[
-    ['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState', 'birthCountry', 'W', 'GS', 'G', 'SV', 'ER',
-     'SO', 'BB', 'ERA', 'BAOpp', 'WP', 'HR', 'gmLI', 'WAR']]
-
-pitching_correlation = pitching_advanced_df.corr()
-pitching_correlation_matrix = px.imshow(pitching_correlation,
-                                        text_auto=True,
-                                        aspect='auto', zmax=1, zmin=-1,
-                                        color_continuous_scale=px.colors.diverging.Fall)
-
-# This actually looks a little interesting. Might try to implement this:
-# https://plotly.com/python/range-slider/
+pitching_advanced_df = pitching_advanced_df[['playerID', 'bbrefID', 'yearID', 'fullName', 'teamID', 'birthState',
+                                             'birthCountry', 'W', 'GS', 'G', 'SV', 'ER', 'SO', 'BB', 'ERA', 'BAOpp',
+                                             'WP', 'HR', 'gmLI', 'WAR']]
+#Pitching Scatter Plot
 pitching_plot = px.scatter(pitching_full,
                            x="SO", y="ERA",
                            color="yearID",
                            range_color=[1899, 2022],
                            hover_name="fullName", hover_data=["yearID", "G"])
+
+#Pitching Correlation Between Statistics
+pitching_correlation = pitching_advanced_df.corr()
+pitching_correlation_matrix=px.imshow(pitching_correlation, text_auto=True, aspect='auto', zmax=1, zmin=-1, color_continuous_scale=px.colors.diverging.Fall)
+
+#Pitching Political
+pitching_political = pd.merge(pitching_advanced_df, pres_df, on="yearID").rename({"Democrat": "demPres"},
+                                                                                         axis=1)
+pitching_political = pd.merge(pitching_political,
+                              senators_df[["yearID", "% Democrats"]],
+                              on="yearID").rename({"% Democrats": "demSenate"}, axis=1)
+
+pitching_political = pd.merge(pitching_political,
+                              congress_df[["yearID", "% Democrats"]],
+                              on="yearID").rename({"% Democrats": "demCongress"}, axis=1)
+idx = pd.MultiIndex.from_product((pitching_political['playerID'].unique(), pitching_political['demPres'].unique()),
+                                 names=["playerID", "demPres"])
+pitch_pres_comp = pitching_political.groupby(["playerID", "demPres"]).agg({"WAR": "mean"}).reindex(idx)
+pitch_pres_comp = pitch_pres_comp.fillna(0)
+pitching_political_score = pitch_pres_comp.groupby("playerID").agg(np.subtract.reduce)
+pitching_political_score.columns = ['Political Score']
+
+
+batting_heavy_advanced_poli = pd.merge(batting_advanced_df,batting_political_score,on = 'playerID')
+batting_heavy_advanced_main = batting_heavy_advanced_poli.iloc[:,7:26]
+batting_heavy_advanced_main = batting_heavy_advanced_main.fillna(value = 0,axis=0)
+scaler = StandardScaler()
+batting_heavy_advanced_main_scale = pd.DataFrame(scaler.fit_transform(batting_heavy_advanced_main),columns=['G','AB',
+                                                'R', 'H', '2B', '3B', 'HR', 'RBI', 'SB', 'CS', 'BB', 'SO', 'HBP', 'SH',
+                                                'SF', 'WAR', 'oWAR', 'dWAR','Political Score'])
+inertia = []
+for i in range(1,11):
+    kmeans = KMeans(
+        n_clusters=i, init="k-means++",
+        n_init=10,
+        tol=1e-04, random_state=42
+    )
+    kmeans.fit(batting_heavy_advanced_main_scale)
+    inertia.append(kmeans.inertia_)
+
+kmeans = KMeans(
+        n_clusters= 4, init="k-means++",
+        n_init=10,
+        tol=1e-04, random_state=42
+    )
+kmeans.fit(batting_heavy_advanced_main_scale)
+batting_heavy_advanced_main_scale['label']=kmeans.labels_
+polar=batting_heavy_advanced_main_scale.groupby("label").mean().reset_index()
+polar=pd.melt(polar,id_vars=["label"])
+batting_flower_fig= px.line_polar(polar, r="value", theta="variable", color="label", line_close=True,height=800,width=1200)
+
+
+
+pie=batting_heavy_advanced_main_scale.groupby('label').size().reset_index()
+pie.columns=['label','value']
+batting_pie_fig=px.pie(pie,values='value',names='label')
+
+
+
+pca_num_components = 2
+reduced_data = PCA(n_components=pca_num_components).fit_transform(batting_heavy_advanced_main_scale.drop('label',axis = 1))
+results = pd.DataFrame(reduced_data,columns=['pca1','pca2'])
+batting_cluster_fig=px.scatter(results,x="pca1", y="pca2", color=batting_heavy_advanced_main_scale['label'],hover_name=batting_advanced_df['fullName'])
+
+
+
+
+pitching_full_advanced_poli = pd.merge(pitching_advanced_df,pitching_political_score, on = 'playerID')
+pitching_full_advanced_main = pitching_full_advanced_poli.iloc[:, 7:21]
+pitching_full_advanced_main = pitching_full_advanced_main.fillna(value=0, axis=0)
+
+scaler = StandardScaler()
+pitching_full_advanced_main_scale = pd.DataFrame(scaler.fit_transform(pitching_full_advanced_main),
+                                                 columns=['W', 'GS', 'G', 'SV', 'ER', 'SO', 'BB', 'ERA', 'BAOpp',
+                                                          'WP', 'HR', 'gmLI', 'WAR','Political Score'])
+
+kmeans = KMeans(
+        n_clusters= 3, init="k-means++",
+        n_init=10,
+        tol=1e-04, random_state=42
+    )
+
+kmeans.fit(pitching_full_advanced_main_scale)
+pitching_full_advanced_main_scale['label']=kmeans.labels_
+
+
+pca_num_components = 2
+
+reduced_data = PCA(n_components=pca_num_components).fit_transform(
+   pitching_full_advanced_main_scale.drop('label', axis=1))
+results = pd.DataFrame(reduced_data, columns=['pca1', 'pca2'])
+pitching_cluster_fig=px.scatter(results, x="pca1", y="pca2", color=pitching_full_advanced_main_scale['label'],
+           hover_name=pitching_full_advanced_poli['fullName'])
 
 
 @app.callback(
@@ -246,6 +353,23 @@ app.layout = html.Div(children=[
    html.Div(
         dbc.Card([
             dcc.Graph(id="Batting Correlation Matrix", figure=batting_correlation_matrix),
+                   ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+   html.Div(
+        dbc.Card([
+            dcc.Graph(id="Batting Cluster Flower", figure=batting_flower_fig),
+                   ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+
+   html.Div(
+        dbc.Card([
+            dcc.Graph(id="Batting Cluster", figure=batting_cluster_fig),
+                   ], color="secondary"), className="w-75 mx-auto p-2"
+            ),
+
+   html.Div(
+        dbc.Card([
+            dcc.Graph(id="Pitching Cluster", figure=pitching_cluster_fig),
                    ], color="secondary"), className="w-75 mx-auto p-2"
             ),
         ])
