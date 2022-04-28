@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Dict
 
 # Custom dataset processing class
-from dash_app.data_processing import Dataset
+from data_processing import Dataset
 
 # Initialize the path of the root directory
 MAIN_DIR = Path(".").absolute().parent
