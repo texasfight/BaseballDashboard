@@ -63,6 +63,7 @@ class Dataset:
                                         advanced_df.drop(['G', 'GS'], axis=1),
                                         on=['yearID', 'bbrefID'])
 
+        # Add political data
         political_df = pd.merge(self.counting_df, self.pres_df, on="yearID").rename({"Democrat": "demPres"},
                                                                                     axis=1)
         political_df = pd.merge(political_df,
@@ -73,6 +74,7 @@ class Dataset:
                                 self.congress_df[["yearID", "% Democrats"]],
                                 on="yearID").rename({"% Democrats": "demCongress"}, axis=1)
 
+        # Begin generating political score
         idx = pd.MultiIndex.from_product(
             (political_df["playerID"].unique(), political_df['demPres'].unique()),
             names=["playerID", "demPres"])

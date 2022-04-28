@@ -19,6 +19,12 @@ from sklearn.decomposition import PCA
 # Helper Built-in libs
 from pathlib import Path
 from typing import Dict
+import warnings
+
+# Plotly uses a deprecated pandas function and it doesn't stop warning us about it during runtime
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
+pd.options.mode.chained_assignment = None
 
 # Custom dataset processing class
 from data_processing import Dataset
@@ -152,6 +158,8 @@ kmeans = KMeans(
 kmeans_batting = batting_data.scaled_df.copy()
 kmeans.fit(kmeans_batting)
 kmeans_batting['label'] = kmeans.labels_
+
+# Flower Plot
 kmeans_polar_batting = kmeans_batting.groupby("label").mean().reset_index()
 kmeans_polar_batting = pd.melt(kmeans_polar_batting, id_vars=["label"])
 batting_flower_kmeans = px.line_polar(kmeans_polar_batting, r="value", theta="variable", color="label",
@@ -164,6 +172,7 @@ batting_pca_results = pd.DataFrame(reduced_data, columns=['pca1', 'pca2'])
 batting_cluster_kmeans = px.scatter(batting_pca_results, x="pca1", y="pca2", color=kmeans_batting['label'],
                                     hover_name=batting_data.counting_df['fullName'], title='Batting Cluster - Kmeans')
 
+# Pitching
 kmeans = KMeans(
     n_clusters=3, init="k-means++",
     n_init=10,
@@ -172,11 +181,14 @@ kmeans = KMeans(
 kmeans_pitching = pitching_data.scaled_df.copy()
 kmeans.fit(kmeans_pitching)
 kmeans_pitching['label'] = kmeans.labels_
+
+# Pitching flower plot
 kmeans_polar_pitching = kmeans_pitching.groupby("label").mean().reset_index()
 kmeans_polar_pitching = pd.melt(kmeans_polar_pitching, id_vars=["label"])
 pitching_flower_kmeans = px.line_polar(kmeans_polar_pitching, r="value", theta="variable", color="label",
                                        line_close=True, title='Pitching Cluster Features - Kmeans')
 
+# Pitching PCA
 reduced_data = PCA(n_components=pca_num_components).fit_transform(
     kmeans_pitching.drop('label', axis=1))
 pitching_pca_results = pd.DataFrame(reduced_data, columns=['pca1', 'pca2'])
@@ -212,13 +224,30 @@ gmm_polar_pitching = gmm_pitching.groupby("label").mean().reset_index()
 gmm_polar_pitching = pd.melt(gmm_polar_pitching, id_vars=["label"])
 
 # KNN Similarity Scoring
-neighbors = NearestNeighbors(n_neighbors=6, n_jobs=-1)
-neighbors.fit(pitching_data.scaled_df)
-scores, neighbor_indices = neighbors.kneighbors(pitching_data.scaled_df.iloc[0, :].values.reshape(1, -1))
+# Pitching
+pitching_neighbors = NearestNeighbors(n_neighbors=6, n_jobs=-1)
+pitching_neighbors.fit(pitching_data.scaled_df)
+pitch_scores, pitch_neighbor_indices = pitching_neighbors.kneighbors(
+    pitching_data.scaled_df.iloc[0, :].values.reshape(1, -1))
 
-similarity_table = pitching_data.counting_df.iloc[neighbor_indices.flatten()]
-similarity_table.loc[:, "Similarity"] = (np.exp(scores) ** -1).T
-similarity_table = similarity_table[["Similarity", ] + [x for x in similarity_table.columns if x != "Similarity"]].round(2)
+# Generate a formatted table for output
+pitch_similarity_table = pitching_data.counting_df.iloc[pitch_neighbor_indices.flatten()]
+pitch_similarity_table.loc[:, "Similarity"] = (np.exp(pitch_scores) ** -1).T
+pitch_similarity_table = pitch_similarity_table[["Similarity", ] +
+                                                [x for x in pitch_similarity_table.columns if x != "Similarity"]
+                                                ].round(2)
+
+# Batting
+batting_neighbors = NearestNeighbors(n_neighbors=6, n_jobs=-1)
+batting_neighbors.fit(batting_data.scaled_df)
+bat_scores, bat_neighbor_indices = batting_neighbors.kneighbors(batting_data.scaled_df.iloc[0, :].values.reshape(1, -1))
+
+# Generate a formatted table for output
+bat_similarity_table = batting_data.counting_df.iloc[bat_neighbor_indices.flatten()]
+bat_similarity_table.loc[:, "Similarity"] = (np.exp(bat_scores) ** -1).T
+bat_similarity_table = bat_similarity_table[["Similarity", ] +
+                                            [x for x in bat_similarity_table.columns if x != "Similarity"]
+                                            ].round(2)
 
 
 @app.callback(
@@ -261,29 +290,38 @@ def update_hitting(year_range, x_value, y_value):
     return new_plot
 
 
-# def generate_similarity_card(category: str):
-#     card_layout = html.Div(dbc.Card([
-#         dcc.Graph(id=f"{category}_plot", figure=figure),
-#         dbc.Row(children=[
-#             dbc.Col(children=[
-#                 'X-Axis',
-#                 dcc.Dropdown(id=f"{category}_dropdown_x",
-#                              options=options,
-#                              searchable=True,
-#                              value="G",
-#                              placeholder='Please select...',
-#                              clearable=True)
-#             ]),
-#             dbc.Col(children=[
-#                 'Y-Axis',
-#                 dcc.Dropdown(id=f"{category}_dropdown_y",
-#                              options=options,
-#                              searchable=True,
-#                              value="WAR",
-#                              placeholder='Please select...',
-#                              clearable=True)
-#             ])]
-#         )], color="secondary"), className="w-75 mx-auto p-2")
+def generate_similarity_card(category: str, original_data: pd.DataFrame, similarity_table: pd.DataFrame):
+    unwanted_columns = ["playerID", "bbrefID", "birthState", "birthCountry"]
+    layout = html.Div(
+        dbc.Card([
+            html.H3(f"Similarity Scoring - {category}", className="mx-auto"),
+            dbc.Row(children=[
+                dbc.Col(children=[
+                    'Player',
+                    dcc.Dropdown(id=f"{category}_player_dropdown",
+                                 options=original_data["fullName"].unique(),
+                                 searchable=True,
+                                 value=original_data["fullName"].unique()[0],
+                                 placeholder='Please select...',
+                                 clearable=True)
+                ]),
+                dbc.Col(children=[
+                    'Year',
+                    dcc.Dropdown(id=f"{category}_year_dropdown",
+                                 options=original_data["yearID"].unique(),
+                                 searchable=True,
+                                 value=1899,
+                                 placeholder='Please select...',
+                                 clearable=True)
+                ])], className="p-2"
+            ),
+            dash_table.DataTable(similarity_table.drop(unwanted_columns, axis=1).to_dict('records'),
+                                 [{"name": i, "id": i} for i in similarity_table.drop(unwanted_columns,
+                                                                                      axis=1).columns],
+                                 id=f"{category}_table"),
+        ], color="secondary"), className="w-75 mx-auto p-2"
+    )
+    return layout
 
 
 def generate_super_plot(category: str, options: Dict[str, str], figure: Figure):
@@ -330,6 +368,72 @@ def generate_card(name: str, figure: Figure):
         ], color="secondary"), className="w-75 mx-auto p-2"
     )
     return card_layout
+
+
+@app.callback(
+    [Output('pitching_year_dropdown', 'options'),
+     Output('pitching_year_dropdown', 'value')],
+    Input('pitching_player_dropdown', 'value')
+)
+def set_pitching_years(player):
+    pitching_years = pitching_data.counting_df[pitching_data.counting_df["fullName"] == player].loc[:,
+                     "yearID"].unique()
+    return pitching_years, pitching_years[0]
+
+
+@app.callback(
+    Output('pitching_table', 'data'),
+    [Input('pitching_year_dropdown', 'value'),
+     Input('pitching_player_dropdown', 'value')]
+)
+def update_pitching_similarity_table(year, player):
+    unwanted_columns = ["playerID", "bbrefID", "birthState", "birthCountry"]
+    player_index = pitching_data.counting_df[(pitching_data.counting_df["yearID"] == year) &
+                                             (pitching_data.counting_df["fullName"] == player)].index.tolist()[0]
+    pitch_scores, pitch_neighbor_indices = pitching_neighbors.kneighbors(
+        pitching_data.scaled_df.iloc[player_index, :].values.reshape(1, -1))
+
+    # Generate a formatted table for output
+    pitch_similarity_table = pitching_data.counting_df.iloc[pitch_neighbor_indices.flatten()]
+    pitch_similarity_table.loc[:, "Similarity"] = (np.exp(pitch_scores) ** -1).T
+    pitch_similarity_table = pitch_similarity_table[["Similarity", ] +
+                                                    [x for x in pitch_similarity_table.columns if x != "Similarity"]
+                                                    ].round(2)
+
+    return pitch_similarity_table.drop(unwanted_columns, axis=1).to_dict('records')
+
+
+@app.callback(
+    [Output('batting_year_dropdown', 'options'),
+     Output('batting_year_dropdown', 'value')],
+    Input('batting_player_dropdown', 'value')
+)
+def set_batting_years(player):
+    batting_years = batting_data.counting_df[batting_data.counting_df["fullName"] == player].loc[:,
+                     "yearID"].unique()
+    return batting_years, batting_years[0]
+
+
+@app.callback(
+    Output('batting_table', 'data'),
+    [Input('batting_year_dropdown', 'value'),
+     Input('batting_player_dropdown', 'value')]
+)
+def update_batting_similarity_table(year, player):
+    unwanted_columns = ["playerID", "bbrefID", "birthState", "birthCountry"]
+    player_index = batting_data.counting_df[(batting_data.counting_df["yearID"] == year) &
+                                             (batting_data.counting_df["fullName"] == player)].index.tolist()[0]
+    bat_scores, bat_neighbor_indices = batting_neighbors.kneighbors(
+        batting_data.scaled_df.iloc[player_index, :].values.reshape(1, -1))
+
+    # Generate a formatted table for output
+    bat_similarity_table = batting_data.counting_df.iloc[bat_neighbor_indices.flatten()]
+    bat_similarity_table.loc[:, "Similarity"] = (np.exp(bat_scores) ** -1).T
+    bat_similarity_table = bat_similarity_table[["Similarity", ] +
+                                                    [x for x in bat_similarity_table.columns if x != "Similarity"]
+                                                    ].round(2)
+
+    return bat_similarity_table.drop(unwanted_columns, axis=1).to_dict('records')
 
 
 @app.callback(
@@ -383,6 +487,7 @@ def switch_catgories(event: bool):
     if event:
         plots = [
             generate_super_plot("pitching", PITCHING_OPTIONS, pitching_plot),
+        generate_similarity_card("pitching", pitching_data.counting_df, pitch_similarity_table),
             generate_card("Pitching Political", pitching_polit_plot),
             generate_card("Pitching Correlation Matrix", figure=pitching_correlation_matrix),
             html.Div(BooleanSwitch(id="cluster_switch_pitch", on=True, label="Switch Clustering")),
@@ -393,11 +498,12 @@ def switch_catgories(event: bool):
     else:
         plots = [
             generate_super_plot("batting", BATTING_OPTIONS, batting_plot),
+            generate_similarity_card("batting", batting_data.counting_df, bat_similarity_table),
             generate_card("Batting Political", batting_polit_plot),
             generate_card("Batting Correlation Matrix", figure=batting_correlation_matrix),
             html.Div(BooleanSwitch(id="cluster_switch_bat", on=True, label="Switch Clustering")),
             generate_card("Batting Cluster Flower - Kmeans", figure=batting_flower_kmeans),
-            generate_card("Batting Cluster - Kmeans", figure=batting_cluster_kmeans)
+            generate_card("Batting Cluster - Kmeans", figure=batting_cluster_kmeans),
         ]
     return plots
 
@@ -408,19 +514,16 @@ app.layout = html.Div(children=[
            href="https://www.youtube.com/watch?v=ECRcCIg0K50",
            className="p-2"),
     html.Div(BooleanSwitch(id="pitching_switch", on=True, label="Pitching Switch"), className="p-2"),
-    # html.Div(
-    #     dbc.Card([
-    #         dash_table.DataTable(similarity_table.drop(["playerID", "bbrefID"], axis=1).to_dict('records'),
-    #                              [{"name": i, "id": i} for i in similarity_table.columns]),
-    #     ], color="secondary"), className="w-75 mx-auto p-2"
-    # ),
+
     html.Div(children=[
         generate_super_plot("pitching", PITCHING_OPTIONS, pitching_plot),
+        generate_similarity_card("pitching", pitching_data.counting_df, pitch_similarity_table),
         generate_card("Pitching Political", pitching_polit_plot),
         generate_card("Pitching Correlation Matrix", figure=pitching_correlation_matrix),
         html.Div(BooleanSwitch(id="cluster_switch_pitch", on=True, label="Switch Clustering")),
         generate_card("Pitching Cluster Flower - Kmeans", figure=pitching_flower_kmeans),
         generate_card("Pitching Cluster - Kmeans", figure=pitching_cluster_kmeans)
+
     ], id="plots")
 
 ], )
