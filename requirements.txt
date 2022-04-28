@@ -2,9 +2,9 @@ matplotlib
 plotly~=5.7.0
 numpy~=1.22.3
 pandas~=1.4.2
-scipy
 requests~=2.27.1
 beautifulsoup4~=4.11.1
+scikit-learn
 dash
 dash-bootstrap-components
 gunicorn
